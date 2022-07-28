@@ -1,0 +1,21 @@
+{
+  "name": "near-rock-paper-scissors",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "npm run build:contract && cd tests && npm run test",
+    "deploy": "npm run build:contract && near dev-deploy",
+    "build:contract": "asb && cp ./build/release/near-rock-paper-scissors.wasm ./out/main.wasm"
+  },
+  "dependencies": {
+    "near-api-js": "^0.45.1",
+    "near-sdk-as": "^3.2.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^28.1.6",
+    "@types/node": "^18.6.1",
+    "near-cli": "^3.4.0",
+    "typescript": "^4.7.4"
+  }
+}
