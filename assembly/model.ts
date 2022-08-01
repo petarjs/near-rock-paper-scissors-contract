@@ -31,3 +31,8 @@ export const games: PersistentMap<string, Game> = new PersistentMap<
   string,
   Game
 >("g");
+
+export const myGamesInProgress: PersistentMap<
+  string,
+  PersistentSet<string>
+> = new PersistentMap<string, PersistentSet<string>>("gip");

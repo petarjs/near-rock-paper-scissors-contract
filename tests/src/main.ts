@@ -80,8 +80,12 @@ test("creates a game", async () => {
   );
 
   const games: Game[] = await contract.view("getGames", {});
-
   expect(games.length === 1).toBeTruthy();
+
+  const myGames: Game[] = await contract.view("getMyGamesInProgress", {
+    accountId: alice.accountId,
+  });
+  expect(myGames.length === 1).toBeTruthy();
 });
 
 test("joins a game", async () => {

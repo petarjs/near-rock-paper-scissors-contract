@@ -1,5 +1,5 @@
-import { logging, context } from "near-sdk-core";
-import { Game, games, latestGames, RULES } from "./model";
+import { logging, context, PersistentSet } from "near-sdk-core";
+import { Game, games, latestGames, myGamesInProgress, RULES } from "./model";
 import { Sha256 } from "./sha256";
 import { bin2hex } from "./util";
 
@@ -7,6 +7,7 @@ import { bin2hex } from "./util";
  * @TODO
  * - Check if contract has enough balance to execute
  * - Check if sender / signer is really the user it should be
+ * - How to publish events from AssemblyScript?
  */
 export class Contract {
   createGame(gamePin: string): void {
@@ -15,6 +16,14 @@ export class Contract {
     const game = new Game(gamePin, context.sender, "", context.attachedDeposit);
     games.set(gamePin, game);
     latestGames.add(gamePin);
+
+    const p1Games =
+      myGamesInProgress.get(context.sender) ||
+      new PersistentSet<string>(`my-games-${context.sender}`);
+    if (p1Games) {
+      p1Games.add(game.pin);
+      myGamesInProgress.set(context.sender, p1Games);
+    }
   }
 
   joinGame(gamePin: string): void {
@@ -41,6 +50,14 @@ export class Contract {
 
     games.set(gamePin, updatedGame);
     latestGames.delete(gamePin);
+
+    const p2Games =
+      myGamesInProgress.get(context.sender) ||
+      new PersistentSet<string>(`my-games-${context.sender}`);
+    if (p2Games) {
+      p2Games.add(game.pin);
+      myGamesInProgress.set(context.sender, p2Games);
+    }
   }
 
   getGames(): Game[] {
@@ -51,6 +68,24 @@ export class Contract {
     return res;
   }
 
+  getMyGamesInProgress(accountId: string): Game[] {
+    assert(!!accountId, "You must provide an account ID");
+
+    const gamePins = myGamesInProgress.get(accountId);
+
+    if (!gamePins) {
+      return [];
+    }
+
+    let gamesInProgress = new Array<Game>();
+    for (let index = 0; index < gamePins.values().length; index++) {
+      const gamePin = gamePins.values()[index];
+      gamesInProgress.push(games.getSome(gamePin));
+    }
+
+    return gamesInProgress;
+  }
+
   getGameByPin(gamePin: string): Game {
     assert(!!gamePin && games.contains(gamePin), "Game not found");
 
@@ -59,6 +94,8 @@ export class Contract {
 
   play(gamePin: string, moveHash: string): void {
     const game = this.getGameByPin(gamePin);
+
+    assert(!!game, "Game not found");
 
     if (game.p1 == context.sender) {
       assert(!game.p1Hash, "You already played");
