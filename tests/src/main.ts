@@ -63,7 +63,7 @@ afterEach(async () => {
 test("has 0 games initially", async () => {
   const { contract } = context.accounts;
 
-  const games: Game[] = await contract.view("getAvailableGames", {});
+  const games: Game[] = await contract.view("getGames", {});
   expect(games.length === 0).toBeTruthy();
 });
 
@@ -72,9 +72,14 @@ test("creates a game", async () => {
 
   // const state = await contract.viewState();
 
-  await alice.call(contract, "createGame", {}, { attachedDeposit: "50000000" });
+  await alice.call(
+    contract,
+    "createGame",
+    { gamePin: "1234" },
+    { attachedDeposit: "50000000" }
+  );
 
-  const games: Game[] = await contract.view("getAvailableGames", {});
+  const games: Game[] = await contract.view("getGames", {});
 
   expect(games.length === 1).toBeTruthy();
 });
@@ -83,11 +88,21 @@ test("joins a game", async () => {
   const { alice, bob, contract } = context.accounts;
   const attachedDeposit = "50000000";
 
-  await alice.call(contract, "createGame", {}, { attachedDeposit });
-  await bob.call(contract, "joinGame", { gameIndex: 0 }, { attachedDeposit });
+  await alice.call(
+    contract,
+    "createGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
+  await bob.call(
+    contract,
+    "joinGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
 
-  const availableGames: Game[] = await contract.view("getAvailableGames", {});
-  const game: Game = await contract.view("getGameByIndex", { gameIndex: 0 });
+  const availableGames: Game[] = await contract.view("getGames", {});
+  const game: Game = await contract.view("getGameByPin", { gamePin: "1234" });
 
   expect(availableGames.length === 0).toBeTruthy();
   expect(game.p1 === alice.accountId).toBeTruthy();
@@ -98,8 +113,18 @@ test("p1 and p2 make moves", async () => {
   const { alice, bob, contract } = context.accounts;
   const attachedDeposit = "50000000";
 
-  await alice.call(contract, "createGame", {}, { attachedDeposit });
-  await bob.call(contract, "joinGame", { gameIndex: 0 }, { attachedDeposit });
+  await alice.call(
+    contract,
+    "createGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
+  await bob.call(
+    contract,
+    "joinGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
 
   const aliceMove = `scissors-${Math.floor(Math.random() * 10 ** 10)}`;
   const aliceHash = await sha256(aliceMove);
@@ -107,19 +132,19 @@ test("p1 and p2 make moves", async () => {
   const bobMove = `rock-${Math.floor(Math.random() * 10 ** 10)}`;
   const bobHash = await sha256(bobMove);
 
-  await alice.call(contract, "play", { gameIndex: 0, moveHash: aliceHash });
-  await bob.call(contract, "play", { gameIndex: 0, moveHash: bobHash });
+  await alice.call(contract, "play", { gamePin: "1234", moveHash: aliceHash });
+  await bob.call(contract, "play", { gamePin: "1234", moveHash: bobHash });
 
-  const game: Game = await contract.view("getGameByIndex", { gameIndex: 0 });
+  const game: Game = await contract.view("getGameByPin", { gamePin: "1234" });
 
   expect(game.p1Hash === aliceHash).toBeTruthy();
   expect(game.p2Hash === bobHash).toBeTruthy();
 
-  await alice.call(contract, "reveal", { gameIndex: 0, moveRaw: aliceMove });
-  await bob.call(contract, "reveal", { gameIndex: 0, moveRaw: bobMove });
+  await alice.call(contract, "reveal", { gamePin: "1234", moveRaw: aliceMove });
+  await bob.call(contract, "reveal", { gamePin: "1234", moveRaw: bobMove });
 
-  const gameWithReveal: Game = await contract.view("getGameByIndex", {
-    gameIndex: 0,
+  const gameWithReveal: Game = await contract.view("getGameByPin", {
+    gamePin: "1234",
   });
   // console.log({ gameWithReveal });
 });
@@ -128,8 +153,18 @@ test("p1 and p2 make moves - ends up in draw", async () => {
   const { alice, bob, contract } = context.accounts;
   const attachedDeposit = "50000000";
 
-  await alice.call(contract, "createGame", {}, { attachedDeposit });
-  await bob.call(contract, "joinGame", { gameIndex: 0 }, { attachedDeposit });
+  await alice.call(
+    contract,
+    "createGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
+  await bob.call(
+    contract,
+    "joinGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
 
   const aliceMove = `scissors-${Math.floor(Math.random() * 10 ** 10)}`;
   const aliceHash = await sha256(aliceMove);
@@ -137,24 +172,34 @@ test("p1 and p2 make moves - ends up in draw", async () => {
   const bobMove = `scissors-${Math.floor(Math.random() * 10 ** 10)}`;
   const bobHash = await sha256(bobMove);
 
-  await alice.call(contract, "play", { gameIndex: 0, moveHash: aliceHash });
-  await bob.call(contract, "play", { gameIndex: 0, moveHash: bobHash });
+  await alice.call(contract, "play", { gamePin: "1234", moveHash: aliceHash });
+  await bob.call(contract, "play", { gamePin: "1234", moveHash: bobHash });
 
-  await alice.call(contract, "reveal", { gameIndex: 0, moveRaw: aliceMove });
-  await bob.call(contract, "reveal", { gameIndex: 0, moveRaw: bobMove });
+  await alice.call(contract, "reveal", { gamePin: "1234", moveRaw: aliceMove });
+  await bob.call(contract, "reveal", { gamePin: "1234", moveRaw: bobMove });
 
-  const gameWithReveal: Game = await contract.view("getGameByIndex", {
-    gameIndex: 0,
+  const gameWithReveal: Game = await contract.view("getGameByPin", {
+    gamePin: "1234",
   });
   console.log({ gameWithReveal });
 });
 
-test.only("p1 and p2 make moves - try to change move", async () => {
+test("p1 and p2 make moves - try to change move", async () => {
   const { alice, bob, contract } = context.accounts;
   const attachedDeposit = "50000000";
 
-  await alice.call(contract, "createGame", {}, { attachedDeposit });
-  await bob.call(contract, "joinGame", { gameIndex: 0 }, { attachedDeposit });
+  await alice.call(
+    contract,
+    "createGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
+  await bob.call(
+    contract,
+    "joinGame",
+    { gamePin: "1234" },
+    { attachedDeposit }
+  );
 
   const aliceMove = `scissors-${Math.floor(Math.random() * 10 ** 10)}`;
   const aliceHash = await sha256(aliceMove);
@@ -164,12 +209,12 @@ test.only("p1 and p2 make moves - try to change move", async () => {
   const bobMove = `rock-${Math.floor(Math.random() * 10 ** 10)}`;
   const bobHash = await sha256(bobMove);
 
-  await alice.call(contract, "play", { gameIndex: 0, moveHash: aliceHash });
-  await bob.call(contract, "play", { gameIndex: 0, moveHash: bobHash });
+  await alice.call(contract, "play", { gamePin: "1234", moveHash: aliceHash });
+  await bob.call(contract, "play", { gamePin: "1234", moveHash: bobHash });
 
   try {
     await alice.call(contract, "play", {
-      gameIndex: 0,
+      gamePin: "1234",
       moveHash: aliceHash2,
     });
   } catch (error) {

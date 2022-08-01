@@ -4,9 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "test": "npm run build:contract && cd tests && npm run test",
-    "deploy": "npm run build:contract && near dev-deploy",
-    "build:contract": "asb && cp ./build/release/near-rock-paper-scissors.wasm ./out/main.wasm"
+    "test": "npm run build && cd tests && npm run test",
+    "deploy": "npm run build && near dev-deploy",
+    "build": "asb && cp ./build/release/near-rock-paper-scissors.wasm ./out/main.wasm"
   },
   "dependencies": {
     "near-api-js": "^0.45.1",

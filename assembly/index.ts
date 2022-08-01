@@ -1,43 +1,26 @@
-import { u128 } from "near-sdk-as";
-import { logging, context, PersistentVector } from "near-sdk-core";
+import { logging, context } from "near-sdk-core";
+import { Game, games, latestGames, RULES } from "./model";
 import { Sha256 } from "./sha256";
 import { bin2hex } from "./util";
 
-const RULES: Map<string, boolean> = new Map<string, boolean>();
-RULES.set("rock-scissors", true);
-RULES.set("rock-paper", false);
-RULES.set("scissors-rock", false);
-RULES.set("scissors-paper", true);
-RULES.set("paper-scissors", false);
-RULES.set("paper-rock", true);
-
-@nearBindgen
-class Game {
-  p1Hash: string;
-  p2Hash: string;
-  p1Raw: string;
-  p2Raw: string;
-  winner: string;
-
-  constructor(public p1: string, public p2: string, public deposit: u128) {}
-}
 /**
  * @TODO
  * - Check if contract has enough balance to execute
  * - Check if sender / signer is really the user it should be
  */
 export class Contract {
-  private games: PersistentVector<Game> = new PersistentVector<Game>("g");
+  createGame(gamePin: string): void {
+    assert(!games.contains(gamePin), "Provided pin is already in use");
 
-  createGame(): void {
-    const game = new Game(context.sender, "", context.attachedDeposit);
-    this.games.push(game);
+    const game = new Game(gamePin, context.sender, "", context.attachedDeposit);
+    games.set(gamePin, game);
+    latestGames.add(gamePin);
   }
 
-  joinGame(gameIndex: i32): void {
-    assert(gameIndex >= 0 && gameIndex < this.games.length, "Game not found");
+  joinGame(gamePin: string): void {
+    assert(!!gamePin && games.contains(gamePin), "Game not found");
 
-    const game = this.games[gameIndex];
+    const game = games.getSome(gamePin);
 
     assert(!game.p2, "This game already has two players");
     assert(game.p1 != context.sender, "You can not play against yourself");
@@ -50,55 +33,32 @@ export class Contract {
     );
 
     const updatedGame = new Game(
+      gamePin,
       game.p1,
       context.sender,
       context.attachedDeposit
     );
 
-    this.games.replace(gameIndex, updatedGame);
+    games.set(gamePin, updatedGame);
+    latestGames.delete(gamePin);
   }
 
   getGames(): Game[] {
     const res: Game[] = [];
-    for (let i = 0; i < this.games.length; i++) {
-      res.push(this.games[i]);
+    for (let i = 0; i < latestGames.values().length; i++) {
+      res.push(games.getSome(latestGames.values()[i]));
     }
     return res;
   }
 
-  getGameByIndex(gameIndex: i32): Game {
-    assert(gameIndex >= 0 && gameIndex < this.games.length, "Game not found");
+  getGameByPin(gamePin: string): Game {
+    assert(!!gamePin && games.contains(gamePin), "Game not found");
 
-    return this.games[gameIndex];
+    return games.getSome(gamePin);
   }
 
-  getAvailableGames(): Game[] {
-    const maxNumberOfGames = 5;
-    const availableGames = new Array<Game>();
-
-    let limit = min(maxNumberOfGames, this.games.length);
-    let i = limit - 1;
-    let foundEnoughGames = false;
-
-    while (!foundEnoughGames && i >= 0) {
-      const potentialAvailableGame = this.games[i];
-
-      if (!potentialAvailableGame.p2) {
-        availableGames.push(potentialAvailableGame);
-      }
-
-      if (availableGames.length >= limit) {
-        foundEnoughGames = true;
-      }
-
-      i--;
-    }
-
-    return availableGames;
-  }
-
-  play(gameIndex: i32, moveHash: string): void {
-    const game = this.getGameByIndex(gameIndex);
+  play(gamePin: string, moveHash: string): void {
+    const game = this.getGameByPin(gamePin);
 
     if (game.p1 == context.sender) {
       assert(!game.p1Hash, "You already played");
@@ -111,14 +71,14 @@ export class Contract {
     }
 
     if (game.p1Hash && game.p2Hash) {
-      logging.log(`game ${gameIndex} ready for reveal phase`);
+      logging.log(`game ${gamePin} ready for reveal phase`);
     }
 
-    this.games.replace(gameIndex, game);
+    games.set(gamePin, game);
   }
 
-  reveal(gameIndex: i32, moveRaw: string): void {
-    const game = this.getGameByIndex(gameIndex);
+  reveal(gamePin: string, moveRaw: string): void {
+    const game = this.getGameByPin(gamePin);
 
     assert(
       game.p1Hash && game.p2Hash,
@@ -157,7 +117,7 @@ export class Contract {
       game.p2Raw = moveRaw;
     }
 
-    this.games.replace(gameIndex, game);
+    games.set(gamePin, game);
 
     // If both players revealed their moves, determine the winner
     if (game.p1Raw && game.p2Raw) {
@@ -193,7 +153,7 @@ export class Contract {
 
       logging.log(`Winner is ${game.winner}`);
 
-      this.games.replace(gameIndex, game);
+      games.set(gamePin, game);
     }
   }
 }
