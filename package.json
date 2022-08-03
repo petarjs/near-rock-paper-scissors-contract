@@ -9,6 +9,7 @@
     "build": "asb && cp ./build/release/near-rock-paper-scissors.wasm ./out/main.wasm"
   },
   "dependencies": {
+    "assemblyscript-json": "^1.1.0",
     "near-api-js": "^0.45.1",
     "near-sdk-as": "^3.2.3"
   },

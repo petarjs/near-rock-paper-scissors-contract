@@ -1,7 +1,14 @@
-import { logging, context, PersistentSet } from "near-sdk-core";
+import {
+  logging,
+  context,
+  PersistentSet,
+  ContractPromiseBatch,
+  u128,
+} from "near-sdk-core";
 import { Game, games, latestGames, myGamesInProgress, RULES } from "./model";
-import { Sha256 } from "./sha256";
-import { bin2hex } from "./util";
+import { Sha256 } from "./util/sha256";
+import { bin2hex } from "./util/util";
+import { EMIT_GAME_CREATED } from "./events/gameCreated";
 
 /**
  * @TODO
@@ -24,6 +31,8 @@ export class Contract {
       p1Games.add(game.pin);
       myGamesInProgress.set(context.sender, p1Games);
     }
+
+    EMIT_GAME_CREATED(gamePin);
   }
 
   joinGame(gamePin: string): void {
@@ -181,11 +190,15 @@ export class Contract {
       const p1Won: boolean = RULES.get(`${p1Move}-${p2Move}`);
 
       if (p1Won) {
-        // transfer 2x deposit to p1
         game.winner = "p1";
+        ContractPromiseBatch.create(game.p1).transfer(
+          u128.add(game.deposit, game.deposit)
+        );
       } else {
-        // transfer 2x deposit to p2
         game.winner = "p2";
+        ContractPromiseBatch.create(game.p2).transfer(
+          u128.add(game.deposit, game.deposit)
+        );
       }
 
       logging.log(`Winner is ${game.winner}`);
